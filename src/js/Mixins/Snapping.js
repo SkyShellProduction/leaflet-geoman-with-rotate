@@ -1,6 +1,8 @@
 import { hasValues, prioritiseSort } from '../helpers';
+
 let currentMarker = null;
 const SnapMixin = {
+
   distanceBetweenPoints(lat1, lon1, lat2, lon2) {
     const deg2rad = (deg) => deg * (Math.PI / 180);
 
@@ -88,6 +90,8 @@ const SnapMixin = {
 
   _handleClick(e) {
     currentMarker = e;
+    currentMarker._shape = this._shape;
+    currentMarker._layer = this._layer;
   },
 
   handleMagnit(){
@@ -101,6 +105,8 @@ const SnapMixin = {
     const marker = e.target;
     marker._snapped = false;
     currentMarker = e;
+    currentMarker._shape = this._shape || currentMarker._shape;
+    currentMarker._layer = this._layer || currentMarker._layer;
 
     if (!this.throttledList) {
       this.throttledList = L.Util.throttle(
@@ -109,6 +115,7 @@ const SnapMixin = {
         this
       );
     }
+    // console.log(e);
     // if snapping is disabled via holding ALT during drag, stop right here
     if (this._map.pm.Keyboard.isAltKeyPressed()) {
       return false;
@@ -189,18 +196,18 @@ const SnapMixin = {
     // event info for pm:snap and pm:unsnap
     const eventInfo = {
       marker,
-      shape: this._shape,
+      shape: this._shape || currentMarker._shape,
       snapLatLng,
       segment: closestLayer.segment || [],
-      layer: this._layer,
-      workingLayer: this._layer,
+      layer: this._layer || currentMarker._layer,
+      workingLayer: this._layer || currentMarker._layer,
       layerInteractedWith: closestLayer.layer, // for lack of a better property name
       // distance: closestLayer.distance/100,
       distance: closestLayer.distance,
     };
-
+    console.log(eventInfo);
     this._fireSnapDrag(eventInfo.marker, eventInfo);
-    this._fireSnapDrag(this._layer, eventInfo);
+    this._fireSnapDrag(this._layer || currentMarker._layer, eventInfo);
 
     if (closestLayer.distance < minDistance) {
       // snap the marker
@@ -224,7 +231,7 @@ const SnapMixin = {
         const triggerSnap = () => {
           this._snapLatLng = snapLatLng;
           this._fireSnap(marker, eventInfo);
-          this._fireSnap(this._layer, eventInfo);
+          this._fireSnap(this._layer || currentMarker._layer, eventInfo);
         };
   
         // check if the snapping position differs from the last snap
@@ -250,7 +257,7 @@ const SnapMixin = {
 
       // and fire unsnap event
       this._fireUnsnap(eventInfo.marker, eventInfo);
-      this._fireUnsnap(this._layer, eventInfo);
+      this._fireUnsnap(this._layer || currentMarker._layer, eventInfo);
     }
 
     return true;

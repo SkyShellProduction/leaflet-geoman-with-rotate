@@ -107,4 +107,9 @@ export function rotateMap(){
       map.setBearingClone(rotate);
     });
   });
+
+  window.addEventListener("keydown",(e) => {
+    const key = e.key.toLowerCase();
+    if(key === "h") map.pm.Draw.handleMagnit();
+  })
 }
