@@ -1,5 +1,5 @@
 import './leaflet-rotate-src';
-import { arrayGeom } from './data';
+import { arrayGeom } from '../src/js/data';
 
 export function rotateMap(){
   const map = L.map('map', {

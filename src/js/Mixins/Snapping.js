@@ -1,5 +1,5 @@
 import { hasValues, prioritiseSort } from '../helpers';
-
+let currentMarker = null;
 const SnapMixin = {
   distanceBetweenPoints(lat1, lon1, lat2, lon2) {
     const deg2rad = (deg) => deg * (Math.PI / 180);
@@ -46,10 +46,12 @@ const SnapMixin = {
       // add handleSnapping event on drag
       marker.off('drag', this._handleSnapping, this);
       marker.on('drag', this._handleSnapping, this);
+      marker.on('click', this._handleClick, this);
 
       // cleanup event on dragend
       marker.off('dragend', this._cleanupSnapping, this);
       marker.on('dragend', this._cleanupSnapping, this);
+      // marker.off('click', this._handleClick, this);
     });
   },
   _cleanupSnapping(e) {
@@ -83,9 +85,22 @@ const SnapMixin = {
       this._createSnapList();
     }
   },
+
+  _handleClick(e) {
+    currentMarker = e;
+  },
+
+  handleMagnit(){
+    const key = this._map.pm.Keyboard.getPressedKey();
+    if(key && key.toLowerCase() === "h" && currentMarker) {
+       this._handleSnapping(currentMarker);
+    }
+  },
+
   _handleSnapping(e) {
     const marker = e.target;
     marker._snapped = false;
+    currentMarker = e;
 
     if (!this.throttledList) {
       this.throttledList = L.Util.throttle(
@@ -94,12 +109,10 @@ const SnapMixin = {
         this
       );
     }
-
     // if snapping is disabled via holding ALT during drag, stop right here
     if (this._map.pm.Keyboard.isAltKeyPressed()) {
       return false;
     }
-
     // create a list of layers that the marker could snap to
     // this isn't inside a movestart/dragstart callback because middlemarkers are initialized
     // after dragstart/movestart so it wouldn't fire for them
@@ -115,6 +128,37 @@ const SnapMixin = {
     if (this._snapList.length <= 0) {
       return false;
     }
+
+    // alternate calculate all 
+    // let closestLayer = {};
+    // const closestLayers = [];
+    // const cord = marker.getLatLng();
+    // // get the closest layer, it's closest latlng, segment and the distance
+    //   this._snapList.forEach((layer, index) => {
+    //   if (layer._parentCopy && layer._parentCopy === this._layer) {
+    //     return;
+    //   }
+    //   let allow = false;
+    //   const biggerLayers = layer.getLatLngs()[0].filter((c) => c.lat >= cord.lat && c.lng >= cord.lng);
+    //   biggerLayers.forEach((c, i) => {
+    //     const dist = this.distanceBetweenPoints(cord.lat, cord.lng, c.lat, c.lng);
+    //     if(dist < 0.1) {
+    //       closestLayer = {
+    //         distance: dist*100,
+    //         layer,
+    //         latlng: c,
+    //         segment: [biggerLayers[0], biggerLayers[i+1] || c]
+    //       };
+    //       allow = true;
+    //       return undefined;
+    //     }
+    //   });
+    //   if(allow) {
+    //     closestLayers.push(closestLayer);
+    //     allow = false;
+    //   }
+    // })
+    // closestLayer = closestLayers[0] || {};
 
     // get the closest layer, it's closest latlng, segment and the distance
     const closestLayer = this._calcClosestLayer(
@@ -159,7 +203,6 @@ const SnapMixin = {
     this._fireSnapDrag(this._layer, eventInfo);
 
     if (closestLayer.distance < minDistance) {
-      console.log(closestLayer);
       // snap the marker
       marker._orgLatLng = marker.getLatLng();
       const cord = marker.getLatLng();
@@ -171,7 +214,10 @@ const SnapMixin = {
         snapLatLng.lng
       );
       if(dist2 < 0.02) {
-        marker.setLatLng(snapLatLng);
+        const key = this._map.pm.Keyboard.getPressedKey();
+        if(this._map.pm.globalDrawModeEnabled() || (key && key.toLowerCase() === "h")) {
+          marker.setLatLng(snapLatLng);
+        }
         marker._snapped = true;
         marker._snapInfo = eventInfo;
   
@@ -304,7 +350,7 @@ const SnapMixin = {
     // the closest polygon to our dragged marker latlng
     let closestLayers = [];
     let closestLayer = {};
-    const ownLatLngs = this._layer._latlngs;
+    // const ownLatLngs = this._layer._latlngs;
     // loop through the layers version 2
     // layers.forEach((layer, index) => {
     //   if (layer._parentCopy && layer._parentCopy === this._layer) {
