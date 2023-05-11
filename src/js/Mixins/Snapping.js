@@ -1,6 +1,26 @@
 import { hasValues, prioritiseSort } from '../helpers';
 
 const SnapMixin = {
+  distanceBetweenPoints(lat1, lon1, lat2, lon2) {
+    const deg2rad = (deg) => deg * (Math.PI / 180);
+
+    const R = 6371; // Radius of the earth in km
+    const dLat = deg2rad(lat2 - lat1); // deg2rad function converts degrees to radians
+    const dLon = deg2rad(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(deg2rad(lat1)) *
+        Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c; // Distance in km
+
+    return distance;
+  },
+
   _initSnappableMarkers() {
     this.options.snapDistance = this.options.snapDistance || 30;
     this.options.snapSegment =
@@ -119,7 +139,6 @@ const SnapMixin = {
     } else {
       snapLatLng = closestLayer.latlng;
     }
-
     // minimal distance before marker snaps (in pixels)
     const minDistance = this.options.snapDistance;
 
@@ -128,10 +147,11 @@ const SnapMixin = {
       marker,
       shape: this._shape,
       snapLatLng,
-      segment: closestLayer.segment,
+      segment: closestLayer.segment || [],
       layer: this._layer,
       workingLayer: this._layer,
       layerInteractedWith: closestLayer.layer, // for lack of a better property name
+      // distance: closestLayer.distance/100,
       distance: closestLayer.distance,
     };
 
@@ -139,28 +159,39 @@ const SnapMixin = {
     this._fireSnapDrag(this._layer, eventInfo);
 
     if (closestLayer.distance < minDistance) {
+      console.log(closestLayer);
       // snap the marker
       marker._orgLatLng = marker.getLatLng();
-      // TODO: if the origin marker has a altitude is applied to the snapped layer too, do we want this?
-      marker.setLatLng(snapLatLng);
+      const cord = marker.getLatLng();
 
-      marker._snapped = true;
-      marker._snapInfo = eventInfo;
-
-      const triggerSnap = () => {
-        this._snapLatLng = snapLatLng;
-        this._fireSnap(marker, eventInfo);
-        this._fireSnap(this._layer, eventInfo);
-      };
-
-      // check if the snapping position differs from the last snap
-      // Thanks Max & car2go Team
-      const a = this._snapLatLng || {};
-      const b = snapLatLng || {};
-
-      if (a.lat !== b.lat || a.lng !== b.lng) {
-        triggerSnap();
+      const dist2 = this.distanceBetweenPoints(
+        cord.lat,
+        cord.lng,
+        snapLatLng.lat,
+        snapLatLng.lng
+      );
+      if(dist2 < 0.02) {
+        marker.setLatLng(snapLatLng);
+        marker._snapped = true;
+        marker._snapInfo = eventInfo;
+  
+        const triggerSnap = () => {
+          this._snapLatLng = snapLatLng;
+          this._fireSnap(marker, eventInfo);
+          this._fireSnap(this._layer, eventInfo);
+        };
+  
+        // check if the snapping position differs from the last snap
+        // Thanks Max & car2go Team
+        const a = this._snapLatLng || {};
+        const b = snapLatLng || {};
+  
+        if (a.lat !== b.lat || a.lng !== b.lng) {
+          triggerSnap();
+        }
       }
+      // if (dist2 < 0.0015) {
+      // }
     } else if (this._snapLatLng) {
       // no more snapping
 
@@ -219,8 +250,6 @@ const SnapMixin = {
         // if(layer.options.pane === "markerPane") {
 
         // }
-        // const lats = [layer._latlngs[0].lat, layer._latlngs[0].lng];
-        // console.log(lats);
         // this is for debugging
         const debugLine = L.polyline([], { color: 'red', pmIgnore: true });
         debugLine._pmTempLayer = true;
@@ -269,23 +298,49 @@ const SnapMixin = {
     this._snapList.splice(index, 1);
   },
   _calcClosestLayer(latlng, layers) {
-    return this._calcClosestLayers(latlng, layers, 1)[0];
+    return this._calcClosestLayers(latlng, layers, 1)[0] || [];
   },
   _calcClosestLayers(latlng, layers, amount = 1) {
     // the closest polygon to our dragged marker latlng
     let closestLayers = [];
     let closestLayer = {};
+    const ownLatLngs = this._layer._latlngs;
+    // loop through the layers version 2
+    // layers.forEach((layer, index) => {
+    //   if (layer._parentCopy && layer._parentCopy === this._layer) {
+    //     return;
+    //   }
+    //   let allow = false;
+    //   const biggerLayers = layer.getLatLngs()[0].filter((c) => c.lat >= latlng.lat && c.lng >= latlng.lng);
+    //   biggerLayers.forEach((c, i) => {
+    //     const dist = this.distanceBetweenPoints(latlng.lat, latlng.lng, c.lat, c.lng);
+    //     if(dist < 0.1) {
+    //       closestLayer = {
+    //         distance: dist*100,
+    //         layer,
+    //         latlng: c,
+    //         segment: [biggerLayers[0], biggerLayers[i+1] || c]
+    //       };
+    //       allow = true;
+    //       return undefined;
+    //     }
+    //   });
+    //   if(allow) {
+    //     closestLayers.push(closestLayer);
+    //     allow = false;
+    //   }
+    // })
 
-    // loop through the layers
     layers.forEach((layer, index) => {
       // For Circles and CircleMarkers to prevent that they snap to the own borders.
-      if (layer._parentCopy && layer._parentCopy === this._layer) {
-        return;
-      }
+     
       // find the closest latlng, segment and the distance of this layer to the dragged marker latlng
       const results = this._calcLayerDistances(latlng, layer);
+      if (!results) return;
+      // console.log(results, "resluts");
       results.distance = Math.floor(results.distance);
 
+      if(results.distance > 50) return;
       if (this.debugIndicatorLines) {
         if (!this.debugIndicatorLines[index]) {
           const debugLine = L.polyline([], { color: 'red', pmIgnore: true });
@@ -316,6 +371,7 @@ const SnapMixin = {
         closestLayers.push(closestLayer);
       }
     });
+    // console.log(closestLayers);
     if (amount !== 1) {
       // sort the layers by distance
       closestLayers = closestLayers.sort((a, b) => a.distance - b.distance);
@@ -324,14 +380,32 @@ const SnapMixin = {
     if (amount === -1) {
       amount = closestLayers.length;
     }
-
+    // let minLat = 0;
+    // let minLng = 0; 
+    // let elem;
+    // let elem2;
+    // closestLayers.forEach((c) => {
+    //   const a = Math.min(...c.layer.getLatLngs()[0].map((d) => d.lat));
+    //   const b = Math.min(...c.layer.getLatLngs()[0].map((d) => d.lng));
+    //   if(minLat === 0 || minLat < a) {
+    //     minLat = a
+    //     elem = c;
+    //   };
+    //   if(minLng === 0 || minLng < b) {
+    //     minLng = b;
+    //     elem2 = c;
+    //   }
+    // });
+    // console.log(minLat, minLng, elem, elem2, "calc");
+    // console.log(closestLayers.length ? closestLayers[0] : undefined, latlng);
     // return the closest layer and it's data
     // if there is no closest layer, return an empty object
-    const result = this._getClosestLayerByPriority(closestLayers, amount);
-    if (L.Util.isArray(result)) {
-      return result;
+    let result = this._getClosestLayerByPriority(closestLayers, amount);
+    if (!L.Util.isArray(result)) {
+      result = [result];
     }
-    return [result];
+    // console.log(result);
+    return result;
   },
   _calcLayerDistances(latlng, layer) {
     const map = this._map;
@@ -356,7 +430,6 @@ const SnapMixin = {
         distance: this._getDistance(map, latlngs, P),
       };
     }
-
     return this._calcLatLngDistances(P, layer.getLatLngs(), map, isPolygon);
   },
   _calcLatLngDistances(latlng, latlngs, map, closedShape = false) {
@@ -395,8 +468,10 @@ const SnapMixin = {
 
             // is the distance shorter than the previous one? Save it and the segment
             if (shortestDistance === undefined || distance < shortestDistance) {
-              shortestDistance = distance;
-              closestSegment = [A, B];
+              if (distance < 10) {
+                shortestDistance = distance;
+                closestSegment = [A, B];
+              }
             }
           }
         } else {
@@ -416,8 +491,10 @@ const SnapMixin = {
 
     loopThroughCoords(latlngs);
 
+    if (shortestDistance > 9) return undefined;
     if (this.options.snapSegment) {
       // now, take the closest segment (closestSegment) and calc the closest point to latlng on it.
+      if (!closestSegment) return undefined;
       const C = this._getClosestPointOnSegment(
         map,
         latlng,
@@ -442,7 +519,6 @@ const SnapMixin = {
   _getClosestLayerByPriority(layers, amount = 1) {
     // sort the layers by creation, so it is snapping to the oldest layer from the same shape
     layers = layers.sort((a, b) => a._leaflet_id - b._leaflet_id);
-
     const shapes = [
       'Marker',
       'CircleMarker',
@@ -486,7 +562,6 @@ const SnapMixin = {
     // distances from A to C and B to C to check which one is closer to C
     const distanceAC = this._getDistance(map, A, C);
     const distanceBC = this._getDistance(map, B, C);
-    console.log(distanceAC, distanceBC);
 
     // closest latlng of A and B to C
     let closestVertexLatLng = distanceAC < distanceBC ? A : B;
@@ -528,6 +603,7 @@ const SnapMixin = {
     delete this._snapLatLng;
   },
   _getClosestPointOnSegment(map, latlng, latlngA, latlngB) {
+    // console.log("distance", latlng, latlngA, latlngB);
     let maxzoom = map.getMaxZoom();
     if (maxzoom === Infinity) {
       maxzoom = map.getZoom();

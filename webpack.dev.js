@@ -14,17 +14,6 @@ module.exports = {
     filename: 'leaflet-geoman.min.js',
     path: path.resolve(__dirname, 'dist'),
   },
-  optimization: {
-    splitChunks: {
-      cacheGroups: {
-        defaultVendors: {
-          filename: `assets/js/vendors.js`,
-          test: /node_modules/,
-          chunks: 'all',
-        },
-      },
-    },
-  },
   devServer: {
     // contentBase: baseWebpackConfig.externals.paths.dist,
     port: 'auto',
@@ -77,7 +66,11 @@ module.exports = {
   plugins: [
     new MiniCssExtractPlugin({ filename: 'leaflet-geoman.css' }),
     new CopyPlugin({
-      patterns: [{ from: 'leaflet-geoman.d.ts', to: 'leaflet-geoman.d.ts' }],
+      patterns: [{ from: 'leaflet-geoman.d.ts', to: 'leaflet-geoman.d.ts' }, {
+        from: "./static/",
+        to: "",
+        noErrorOnMissing: true
+      }],
     }),
     new HtmlWebpackPlugin({
       template: path.join(__dirname, '/index.html'),

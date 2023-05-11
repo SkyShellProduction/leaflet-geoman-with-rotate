@@ -1,9 +1,9 @@
 /* eslint import/no-extraneous-dependencies: 0 */
-const webpack = require('webpack');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const path = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
+// const WebpackNodeExternals = require('webpack-node-externals');
 
 module.exports = {
   watch: false,
@@ -13,7 +13,9 @@ module.exports = {
   output: {
     filename: 'leaflet-geoman.min.js',
     path: path.resolve(__dirname, 'dist'),
+    clean: true,
   },
+  externals: [{ leaflet: 'leaflet', subtract: './static/' }],
   module: {
     rules: [
       {
@@ -23,13 +25,13 @@ module.exports = {
       },
       {
         test: /\.js$/,
-        exclude: /(node_modules|bower_components)/,
         use: {
           loader: 'babel-loader',
           options: {
             presets: ['@babel/preset-env'],
           },
         },
+        exclude: /node_modules/,
       },
       {
         test: /\.css$/,
@@ -37,7 +39,10 @@ module.exports = {
           {
             loader: MiniCssExtractPlugin.loader,
           },
-          'css-loader',
+          {
+            loader: 'css-loader',
+            // exclude: './src/css/leaflet.css'
+          },
         ],
       },
       {
