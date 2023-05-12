@@ -287,6 +287,6 @@ L.PM.initialize();
 //   'https://api.maptiler.com/tiles/v3-28992/?key=5ANCg0GQkNdZP3z4mMX3#7.0/52.15517/5.38720'
 // ).addTo(map);
 
-// import { rotateMap } from '../../static/rotateMap';
+import { rotateMap } from '../../static/rotateMap';
 
-// rotateMap();
+rotateMap();

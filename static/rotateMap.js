@@ -61,7 +61,7 @@ export function rotateMap(){
             selectedFeature.pm.disable();
           }
           selectedFeature = ev.target;
-          ev.target.pm.enable({ snappable: true, limitMarkersToCount: 100 });
+          ev.target.pm.enable({ snappable: true, limitMarkersToCount: 100, snapDistance: 2 });
         });
       },
     });
@@ -87,12 +87,12 @@ export function rotateMap(){
           }
   
           selectedFeature = ev.target;
-          // console.log(selectedFeature.getElement(), selectedFeature);
+          console.log(selectedFeature.getElement(), selectedFeature);
           ev.target.setStyle({ color: 'aqua' });
           ev.target.pm.enable({
             snappable: true,
             limitMarkersToCount: 100,
-            snapDistance: 10,
+            snapDistance: 2,
             // snapSegment: false
           });
         });
