@@ -4,7 +4,7 @@ import markerRed from '../../../static/marker-red.png';
 
 window.console.warn = function () {};
 let currentMarker = null;
-let markerImage = null;
+// let markerImage = null;
 let lastDragMarkerLatLng = null;
 
 const markersData = new L.FeatureGroup();
@@ -65,9 +65,14 @@ const SnapMixin = {
   },
   _cleanupSnapping(e) {
     // if(currentMarker && lastDragMarkerLatLng) {
-      if(!this._map.pm.Keyboard.isAltKeyPressed()) {
-        e.target.setLatLng(lastDragMarkerLatLng || e.latlng);
-      }
+      // console.log(e);
+    if (!this._map.pm.Keyboard.isAltKeyPressed()) {
+      // console.log(e, lastDragMarkerLatLng);
+      // const markerIcon = L.icon({ iconUrl: markerRed, iconSize: [40, 40] });
+      // const spec = L.marker(e.target.getLatLng(), { icon: markerIcon });
+      // markersData.addLayer(spec);
+      e.target.setLatLng(e.target.getLatLng());
+    }
     // }
     document.removeEventListener('mousemove', this._handleMouseMove);
     if (e) {
@@ -133,25 +138,11 @@ const SnapMixin = {
     // const yMin = e.originalEvent.clientY - 50;
     // const yMax = e.originalEvent.clientY + 50;
     // console.log(xMin, xMax, yMin, yMax);
-    if (markerImage) {
-      this._map.removeLayer(markerImage);
-      // this._map.removeLayer(markerImage1);
-      // this._map.removeLayer(markerImage2);
-      // this._map.removeLayer(markerImage3);
-      // this._map.removeLayer(markerImage4);
-    }
     // const xy1 = [e.latlng.lat - 0.00015, e.latlng.lng - 0.00015];
     // const xy2 = [e.latlng.lat + 0.00015, e.latlng.lng - 0.00015];
     // const xy3 = [e.latlng.lat - 0.00015, e.latlng.lng + 0.00015];
     // const xy4 = [e.latlng.lat + 0.00015, e.latlng.lng + 0.00015];
-    // markerImage = L.marker(e.latlng).addTo(this._map);
-    // markerImage1 = L.marker([e.latlng.lat-0.0004, e.latlng.lng-0.0004]).addTo(this._map);
-    // markerImage2 = L.marker([e.latlng.lat+0.0004, e.latlng.lng-0.0004]).addTo(this._map);
-    // markerImage3 = L.marker([e.latlng.lat-0.0004, e.latlng.lng+0.0004]).addTo(this._map);
-    // markerImage4 = L.marker([e.latlng.lat+0.0004, e.latlng.lng+0.0004]).addTo(this._map);
     // markerImage = L.rectangle([xy1, xy2, xy3, xy4, xy1], {color: "red", fill: null}).addTo(this._map);
-    // markerImage = L.marker([e.latlng.lat, e.latlng.lng]).addTo(this._map);
-    // markerImage = L.marker([e.latlng.lat, e.latlng.lng]).addTo(this._map);
     // this._map.getContainer().addEventListener("mousemove", this._handleMouseMove, this);
     currentMarker = e;
     currentMarker._shape = this._shape || currentMarker._shape;
@@ -186,94 +177,36 @@ const SnapMixin = {
     }
 
     // alternate calculate all
-    let closestLayer = {};
-    const markerIcon = L.icon({
-      iconUrl: markerRed || ' ',
-      iconSize: [40, 41],
-    });
-    const closestLayers = [];
-    const cord = marker.getLatLng();
-    this._snapList.forEach((layer, index) => {
-      if (layer._parentCopy && layer._parentCopy === this._layer) {
-        return;
-      }
-      try {
-        const biggerLayers = layer.getLatLngs()[0];
-        biggerLayers.forEach((c, idx) => {
-          const dist = this.distanceBetweenPoints(
-            cord.lat,
-            cord.lng,
-            c.lat,
-            c.lng
-          );
-          if (dist * 100 > this.options.snapDistance) return;
-          const a = c;
-          let b;
-          const obj = { latlng: c, layer, distance: dist * 100 };
-          if (idx + 1 < biggerLayers.length && this.options.snapSegment) {
-            b = biggerLayers[idx + 1];
-            obj.segment = [a, b];
-          }
-          closestLayers.push(obj);
-          // const marker3 = L.marker(c);
-          // marker3.bindPopup(`index: ${index}, "${dist}"`, {
-          //   permanent: true,
-          //   direction: 'bottom',
-          //   className: 'transparent-tooltip',
-          //   offset: [0, -3],
-          // });
-          // markersData.addLayer(marker3);
-        });
-      } catch (error) {
-        // console.log(error);
-      }
-    });
 
     // get the closest layer, it's closest latlng, segment and the distance
     // closestLayer = closestLayers[0] || {};
 
     // get the closest layer, it's closest latlng, segment and the distance
-    // const closestLayer = this._calcClosestLayer(
-    //   marker.getLatLng(),
-    //   this._snapList
-    // );
+    const closestLayer = this._calcClosestLayer(
+      marker.getLatLng(),
+      this._snapList
+    );
 
-    // // if no layers found. Can happen when circle is the only visible layer on the map and the hidden snapping-border circle layer is also on the map
-    // if (Object.keys(closestLayer).length === 0) {
-    //   return false;
-    // }
+    // if no layers found. Can happen when circle is the only visible layer on the map and the hidden snapping-border circle layer is also on the map
+    if (Object.keys(closestLayer).length === 0) {
+      return false;
+    }
 
-    // const isMarker =
-    //   closestLayer.layer instanceof L.Marker ||
-    //   closestLayer.layer instanceof L.CircleMarker ||
-    //   !this.options.snapSegment;
+    const isMarker =
+      closestLayer.layer instanceof L.Marker ||
+      closestLayer.layer instanceof L.CircleMarker ||
+      !this.options.snapSegment;
 
     // find the final latlng that we want to snap to
     let snapLatLng;
-    // if (!isMarker) {
-    //   snapLatLng = this._checkPrioritiySnapping(closestLayer);
-    // } else {
-    //   snapLatLng = closestLayer.latlng;
-    // }
+    if (!isMarker) {
+      snapLatLng = this._checkPrioritiySnapping(closestLayer);
+    } else {
+      snapLatLng = closestLayer.latlng;
+    }
     // minimal distance before marker snaps (in pixels)
 
     // event info for pm:snap and pm:unsnap
-
-    let min = 0;
-    closestLayers.forEach((d) => {
-      const dist = d.distance;
-      if (min === 0 || dist < min) {
-        min = dist;
-        snapLatLng = d.latlng;
-        closestLayer = {
-          distance: min * 100,
-          latlng: snapLatLng,
-          segment: d.segment || [],
-          layer: d.layer,
-        };
-      }
-    });
-    if (!snapLatLng) return false;
     // // console.log(closestLayer);
     const eventInfo = {
       marker,
@@ -295,19 +228,27 @@ const SnapMixin = {
     //   (key && key.toLowerCase() === 'h')
     // ) {
     // }
+    const cord = marker.getLatLng();
+    const dist2 = this.distanceBetweenPoints(
+      cord.lat,
+      cord.lng,
+      snapLatLng.lat,
+      snapLatLng.lng
+    );
+    if (dist2 > 0.02) return false;
+    // console.log(dist2);
     lastDragMarkerLatLng = snapLatLng;
     if (closestLayer.distance < this.options.snapDistance) {
+      // console.log(closestLayer.distance);
       marker._orgLatLng = marker.getLatLng();
+      marker.setLatLng(snapLatLng);
       marker._snapped = true;
-      const spec = L.marker(snapLatLng, { icon: markerIcon });
-      markersData.addLayer(spec);
       marker._snapInfo = eventInfo;
       const triggerSnap = () => {
         this._snapLatLng = snapLatLng;
         this._fireSnap(marker, eventInfo);
         this._fireSnap(this._layer || currentMarker._layer, eventInfo);
       };
-      // marker.setLatLng(snapLatLng);
 
       // check if the snapping position differs from the last snap
       // Thanks Max & car2go Team

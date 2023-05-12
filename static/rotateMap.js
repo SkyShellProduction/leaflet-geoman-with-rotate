@@ -61,7 +61,7 @@ export function rotateMap(){
             selectedFeature.pm.disable();
           }
           selectedFeature = ev.target;
-          ev.target.pm.enable({ snappable: true, limitMarkersToCount: 100, snapDistance: 2 });
+          ev.target.pm.enable({ snappable: true, limitMarkersToCount: 100, snapDistance: 10 });
         });
       },
     });
@@ -92,7 +92,7 @@ export function rotateMap(){
           ev.target.pm.enable({
             snappable: true,
             limitMarkersToCount: 100,
-            snapDistance: 2,
+            snapDistance: 10,
             // snapSegment: false
           });
         });
