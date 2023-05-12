@@ -1,7 +1,7 @@
 import { hasValues, prioritiseSort } from '../helpers';
 
-import markerRed from '../../../static/marker-red.png';
-
+// import markerRed from '../../../static/marker-red.png';
+let dragEventCounter = 0;
 window.console.warn = function () {};
 let currentMarker = null;
 // let markerImage = null;
@@ -10,6 +10,72 @@ let lastDragMarkerLatLng = null;
 const markersData = new L.FeatureGroup();
 
 const SnapMixin = {
+  mercatorX(lon) {
+    /*
+    Converts longitude to Mercator x-coordinate.
+    */
+    const rMajor = 6378137; // Earth's equatorial radius in meters
+    const lonRadians = this.toRad(lon);
+    const x = rMajor * lonRadians;
+    return x;
+  },
+  toRad(value) {
+    /*
+    Converts degrees to radians.
+    */
+    return value * Math.PI;
+  },
+  mercatorY(lat) {
+    /*
+    Converts latitude to Mercator y-coordinate.
+    */
+    if (lat > 89.5) lat = 89.5; // Avoid infinite tangents
+    if (lat < -89.5) lat = -89.5; // Avoid infinite tangents
+    const rMajor = 6378137; // Earth's equatorial radius in meters
+    const rMinor = 6356752.3142; // Earth's polar radius in meters
+    const eccent = Math.sqrt(1 - rMinor / rMajor) ** 2;
+    const phi = this.toRad(lat);
+    const sinphi = Math.sin(phi);
+    const con = eccent * sinphi;
+    const com = eccent / 2;
+    const con2 = Math.pow(con, 2);
+    const con4 = Math.pow(con, 4);
+    const con6 = Math.pow(con, 6);
+    const con8 = Math.pow(con, 8);
+    const ep2 = Math.pow(rMajor / rMinor, 2) - 1;
+    const ep4 = Math.pow(ep2, 2);
+    const ep6 = Math.pow(ep2, 3);
+    const ep8 = Math.pow(ep2, 4);
+    const denom =
+      rMajor *
+      (1 - Math.pow(eccent, 2)) *
+      Math.pow(1 - Math.pow(eccent, 2) * Math.pow(sinphi, 2), 1.5);
+    const t = Math.tan(phi);
+    const t2 = t * t;
+    const c1 = ep2 * Math.pow(Math.cos(phi), 2);
+    const c2 = ep4 * Math.pow(Math.cos(phi), 4);
+    const c3 = ep6 * Math.pow(Math.cos(phi), 6);
+    const c4 = ep8 * Math.pow(Math.cos(phi), 8);
+    const n = rMajor / Math.sqrt(1 - Math.pow(eccent, 2) * Math.pow(sinphi, 2));
+    const r =
+      (n * (1 - Math.pow(eccent, 2))) /
+      (1 - Math.pow(eccent, 2) * Math.pow(sinphi, 2));
+    const d = (x) => (x * 180) / Math.PI;
+    const y =
+      r *
+      (phi -
+        com *
+          (1 + c1 + c2 + c3 + c4) *
+          (phi -
+            con *
+              t *
+              (1 +
+                c1 * t2 +
+                c2 * Math.pow(t, 4) +
+                c3 * Math.pow(t, 6) +
+                c4 * Math.pow(t, 8))));
+    return y;
+  },
   distanceBetweenPoints(lat1, lon1, lat2, lon2) {
     const deg2rad = (deg) => deg * (Math.PI / 180);
 
@@ -64,8 +130,10 @@ const SnapMixin = {
     });
   },
   _cleanupSnapping(e) {
+    dragEventCounter += 1;
+    if (dragEventCounter % 2 === 0) return false;
     // if(currentMarker && lastDragMarkerLatLng) {
-      // console.log(e);
+    // console.log(e);
     if (!this._map.pm.Keyboard.isAltKeyPressed()) {
       // console.log(e, lastDragMarkerLatLng);
       // const markerIcon = L.icon({ iconUrl: markerRed, iconSize: [40, 40] });
@@ -126,9 +194,13 @@ const SnapMixin = {
   _handleSnapping(e) {
     const marker = e.target;
     marker._snapped = false;
+    // console.log(e.latlng, "origin");
+    // console.log(this.mercatorX(e.originalEvent.offsetX), this.mercatorY(e.originalEvent.offsetY), "calc");
     // marker.setLatLng(e.latlng);
     // document.addEventListener("mousemove", this._handleMouseMove, this);
-
+    // const dist3 = this.distanceBetweenPoints(e.oldLatLng.lat, e.oldLatLng.lng, e.latlng.lat, e.latlng.lng);
+    // if(dist3 > 0.005) return false;
+    marker.setLatLng(e.latlng);
     if (!this._map.hasLayer(markersData)) {
       this._map.addLayer(markersData);
     }
