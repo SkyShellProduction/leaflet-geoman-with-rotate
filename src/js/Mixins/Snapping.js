@@ -2,7 +2,7 @@ import { hasValues, prioritiseSort } from '../helpers';
 
 // import markerRed from '../../../static/marker-red.png';
 let dragEventCounter = 0;
-window.console.warn = function () {};
+// window.console.warn = function () {};
 let currentMarker = null;
 // let markerImage = null;
 let lastDragMarkerLatLng = null;
@@ -10,90 +10,55 @@ let lastDragMarkerLatLng = null;
 const markersData = new L.FeatureGroup();
 
 const SnapMixin = {
-  mercatorX(lon) {
-    /*
-    Converts longitude to Mercator x-coordinate.
-    */
-    const rMajor = 6378137; // Earth's equatorial radius in meters
-    const lonRadians = this.toRad(lon);
-    const x = rMajor * lonRadians;
-    return x;
-  },
   toRad(value) {
     /*
     Converts degrees to radians.
     */
     return value * Math.PI;
   },
-  mercatorY(lat) {
-    /*
-    Converts latitude to Mercator y-coordinate.
-    */
-    if (lat > 89.5) lat = 89.5; // Avoid infinite tangents
-    if (lat < -89.5) lat = -89.5; // Avoid infinite tangents
-    const rMajor = 6378137; // Earth's equatorial radius in meters
-    const rMinor = 6356752.3142; // Earth's polar radius in meters
-    const eccent = Math.sqrt(1 - rMinor / rMajor) ** 2;
-    const phi = this.toRad(lat);
-    const sinphi = Math.sin(phi);
-    const con = eccent * sinphi;
-    const com = eccent / 2;
-    const con2 = Math.pow(con, 2);
-    const con4 = Math.pow(con, 4);
-    const con6 = Math.pow(con, 6);
-    const con8 = Math.pow(con, 8);
-    const ep2 = Math.pow(rMajor / rMinor, 2) - 1;
-    const ep4 = Math.pow(ep2, 2);
-    const ep6 = Math.pow(ep2, 3);
-    const ep8 = Math.pow(ep2, 4);
-    const denom =
-      rMajor *
-      (1 - Math.pow(eccent, 2)) *
-      Math.pow(1 - Math.pow(eccent, 2) * Math.pow(sinphi, 2), 1.5);
-    const t = Math.tan(phi);
-    const t2 = t * t;
-    const c1 = ep2 * Math.pow(Math.cos(phi), 2);
-    const c2 = ep4 * Math.pow(Math.cos(phi), 4);
-    const c3 = ep6 * Math.pow(Math.cos(phi), 6);
-    const c4 = ep8 * Math.pow(Math.cos(phi), 8);
-    const n = rMajor / Math.sqrt(1 - Math.pow(eccent, 2) * Math.pow(sinphi, 2));
-    const r =
-      (n * (1 - Math.pow(eccent, 2))) /
-      (1 - Math.pow(eccent, 2) * Math.pow(sinphi, 2));
-    const d = (x) => (x * 180) / Math.PI;
-    const y =
-      r *
-      (phi -
-        com *
-          (1 + c1 + c2 + c3 + c4) *
-          (phi -
-            con *
-              t *
-              (1 +
-                c1 * t2 +
-                c2 * Math.pow(t, 4) +
-                c3 * Math.pow(t, 6) +
-                c4 * Math.pow(t, 8))));
-    return y;
-  },
   distanceBetweenPoints(lat1, lon1, lat2, lon2) {
-    const deg2rad = (deg) => deg * (Math.PI / 180);
+    // const deg2rad = (deg) => deg * (Math.PI / 180);
 
-    const R = 6371; // Radius of the earth in km
-    const dLat = deg2rad(lat2 - lat1); // deg2rad function converts degrees to radians
-    const dLon = deg2rad(lon2 - lon1);
+    // const R = 6371; // Radius of the earth in km
+    // const dLat = deg2rad(lat2 - lat1); // deg2rad function converts degrees to radians
+    // const dLon = deg2rad(lon2 - lon1);
 
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(deg2rad(lat1)) *
-        Math.cos(deg2rad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+    // const a =
+    //   Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    //   Math.cos(deg2rad(lat1)) *
+    //     Math.cos(deg2rad(lat2)) *
+    //     Math.sin(dLon / 2) *
+    //     Math.sin(dLon / 2);
 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c; // Distance in km
+    // const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    // const distance = R * c; // Distance in km
 
-    return distance;
+    // return distance;
+    const [rlat1, rlon1, rlat2, rlon2] = [lat1, lon1, lat2, lon2].map((coord) => (coord * Math.PI) / 180);
+    const rotationAngle = this._map.getBearing() || 0;
+    // Calculate distance using Haversine formula
+    const dlat = rlat2 - rlat1;
+    const dlon = rlon2 - rlon1;
+    const a = Math.sin(dlat / 2) ** 2 + Math.cos(rlat1) * Math.cos(rlat2) * Math.sin(dlon / 2) ** 2;
+    const c = 2 * Math.asin(Math.sqrt(a));
+    const distance = 6371 * c; // Radius of earth in km
+  
+    // Adjust longitude difference based on rotation angle
+    const lonDiff = dlon * Math.cos(rotationAngle);
+    const adjLonDiff = Math.atan2(
+      Math.sin(lonDiff),
+      Math.cos(rlat1) * Math.tan(rlat2) - Math.sin(rlat1) * Math.cos(lonDiff)
+    );
+  
+    // Calculate distance using adjusted latitude and longitude
+    const adjLon2 = rlon1 + adjLonDiff;
+    const adjDlat = rlat2 - rlat1;
+    const adjDlon = adjLon2 - rlon1;
+    const adjA = Math.sin(adjDlat / 2) ** 2 + Math.cos(rlat1) * Math.cos(rlat2) * Math.sin(adjDlon / 2) ** 2;
+    const adjC = 2 * Math.asin(Math.sqrt(adjA));
+    const adjDistance = 6371 * adjC; // Radius of earth in km
+  
+    return adjDistance;  
   },
 
   _initSnappableMarkers() {
@@ -200,7 +165,7 @@ const SnapMixin = {
     // document.addEventListener("mousemove", this._handleMouseMove, this);
     // const dist3 = this.distanceBetweenPoints(e.oldLatLng.lat, e.oldLatLng.lng, e.latlng.lat, e.latlng.lng);
     // if(dist3 > 0.005) return false;
-    marker.setLatLng(e.latlng);
+    // marker.setLatLng(e.latlng);
     if (!this._map.hasLayer(markersData)) {
       this._map.addLayer(markersData);
     }
@@ -307,7 +272,8 @@ const SnapMixin = {
       snapLatLng.lat,
       snapLatLng.lng
     );
-    if (dist2 > 0.02) return false;
+    if (dist2 > 3000) return false;
+    console.log(dist2);
     // console.log(dist2);
     lastDragMarkerLatLng = snapLatLng;
     if (closestLayer.distance < this.options.snapDistance) {
